@@ -31,3 +31,24 @@ function postJSON(url, data) {
   })
   //! the fn returns a promise obj so that anywhere in your code you can use a then
 }
+
+const postAsyncJSON = async () => {
+  const configObj = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data)
+  }
+  try {
+    const resp = await fetch(url, configObj)
+    if (resp.ok) {
+        const data = await resp.json()
+        return data
+    } else {
+      throw (resp.statusText)
+    }
+  } catch (error) {
+    return error
+  }
+}
