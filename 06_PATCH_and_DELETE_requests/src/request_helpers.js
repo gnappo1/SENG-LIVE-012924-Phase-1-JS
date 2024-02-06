@@ -30,7 +30,7 @@ function patchJSON(url, data) {
       if (response.ok) {
         return response.json()
       }
-      throw response;
+      throw response.statusText;
     })
 }
 
@@ -39,8 +39,7 @@ function deleteJSON(url) {
     .then(res => {
       if (res.ok) {
         return "Record deleted successfully";
-      } else {
-        throw "Failed to delete record";
       }
+      throw "Failed to delete record";
     })
 }

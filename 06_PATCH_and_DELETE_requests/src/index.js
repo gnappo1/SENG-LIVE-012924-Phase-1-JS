@@ -1,6 +1,11 @@
 //////////////////////////////////////////////////////////
 // Fetch Data & Call render functions to populate the DOM
 //////////////////////////////////////////////////////////
+const booksUrl = 'http://localhost:3000/books';
+const modal = document.querySelector('#myModal')
+const modalForm = document.querySelector('#edit-book-form')
+const xCloseModalBtn = document.querySelector("#myModal > div > span")
+
 getJSON('http://localhost:3000/stores')
   .then((stores) => {
     // this populates a select tag with options so we can switch between stores on our web page
@@ -14,7 +19,7 @@ getJSON('http://localhost:3000/stores')
   });
 
 // load all the books and render them
-getJSON("http://localhost:3000/books")
+getJSON(booksUrl)
   .then((books) => {
     books.forEach(book => renderBook(book))
   })
@@ -67,6 +72,7 @@ function renderBook(book) {
     
   const li = document.createElement('li');
   li.className = 'list-li';
+  li.setAttribute('data-id', book.id)
   
   const h3 = document.createElement('h3');
   h3.textContent = book.title;
@@ -94,11 +100,62 @@ function renderBook(book) {
   const btn = document.createElement('button');
   btn.textContent = 'Delete';
 
+  const editBtn = document.createElement('button');
+  editBtn.textContent = 'Edit';
+
+  li.append(h3, pAuthor, pPrice, pStock, img, editBtn, btn);
+
   btn.addEventListener('click', (e) => {
+    //! OPTIMISTIC APPROACH
+    const justInCaseOldLi = li
     li.remove();
+    deleteJSON(`${booksUrl}/${book.id}`)
+    .catch(err => {
+      renderError(err)
+      document.querySelector('#book-list').append(li);
+    })
   })
 
-  li.append(h3, pAuthor, pPrice, pStock, img, btn);
+  editBtn.addEventListener('click', (e) => {
+    //! Make the modal appear by adding displayBlock className
+    modal.classList.add('displayBlock');
+    //!~ fill in the form with the book data captured at the time displayBook was invoked (POSSIBLY STALE)
+    // fillIn(modalForm, book)
+    //!~ fill in the form with the book data just fetched
+    getJSON(`${booksUrl}/${book.id}`)
+    .then(mostRecentBookData => fillIn(modalForm, mostRecentBookData))
+
+    //! Attach a submit listener onto the editForm
+    modalForm.addEventListener('submit', e => {
+      e.preventDefault()
+      // how do I build ONE object out of it
+      const editedBook = {
+        title: e.target.title.value,
+        author: e.target.author.value,
+        price: e.target.price.valueAsNumber,
+        inventory: parseInt(e.target.inventory.value),
+        imageUrl: e.target.imageUrl.value,
+      }
+      
+      //! Talk to json-server to persist the update
+      patchJSON(`${booksUrl}/${book.id}`, editedBook)
+      .then(updatedBook => {
+        const bookLiToUpdate = document.querySelector(`ul#book-list > li[data-id='${book.id}']`)
+        bookLiToUpdate.querySelector('h3').innerText = updatedBook.title
+        bookLiToUpdate.querySelector('p').innerText = updatedBook.author
+        bookLiToUpdate.querySelector('p:nth-child(2)').innerText = updatedBook.author
+        bookLiToUpdate.querySelector('p:nth-child(3)').innerText = formatPrice(updatedBook.price)
+        bookLiToUpdate.querySelector('img').src = updatedBook.imageUrl
+        bookLiToUpdate.querySelector('img').alt = updatedBook.title
+
+        //! Hide the modal
+        modal.classList.remove('displayBlock');
+      })
+      .catch(err => renderError(err))
+      //! talk to the DOM to display the updated data
+    })
+  })
+
   document.querySelector('#book-list').append(li);
 }
 
@@ -130,7 +187,9 @@ function fillIn(form, data) {
     // in an object at variable keys, i.e. when
     // we don't know the key name up front.
     // In this case, it comes from an argument.
-    form[field].value = data[field]
+    if (form[field]) {
+      form[field].value = data[field]
+    }
   }
 }
 
@@ -226,4 +285,12 @@ fillIn(storeForm, {
   address: "555 Shangri-La",
   hours: "Monday - Friday 9am - 6pm"
 })
+
+window.addEventListener('click', (e) => {
+  if (e.target == modal) {
+    modal.classList.remove('displayBlock')
+  }
+})
+
+xCloseModalBtn.addEventListener('click', () =>  modal.classList.remove('displayBlock'))
 
